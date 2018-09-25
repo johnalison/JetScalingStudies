@@ -14,7 +14,7 @@ ROOT.gROOT.ProcessLine('.L Loader.C+')
 inFile = ROOT.TFile(o.infileName,"READ")
 
 inFile.ls()
-tree = inFile.Get("EventTree")
+tree = inFile.Get("ggNtuplizer/EventTree")
 tree.Print("jet*")
 
 
