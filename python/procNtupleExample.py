@@ -22,8 +22,8 @@ tree.Print("eleCali*")
 # Input Data 
 #
 from eventData  import EventData
-#from jetInfo  import JetDataHandler
-from leptonInfo  import ElectronDataHandler
+from jetInfo    import JetDataHandler
+from leptonInfo import ElectronDataHandler
 
 eventData = EventData()
 eventData.SetBranchAddress(tree)
@@ -32,15 +32,9 @@ eventData.SetBranchAddress(tree)
 #
 #  Load Jet info
 #
-jetEn  = ROOT.std.vector('float')()
-jetPt  = ROOT.std.vector('float')()
-jetEta = ROOT.std.vector('float')()
-jetPhi = ROOT.std.vector('float')()
+jetDB = JetDataHandler()
+jetDB.SetBranchAddress(tree)
 
-tree.SetBranchAddress( 'jetEn', jetEn)
-tree.SetBranchAddress( 'jetPt', jetPt)
-tree.SetBranchAddress( 'jetEta',jetEta)
-tree.SetBranchAddress( 'jetPhi',jetPhi)
 
 
 #
@@ -48,18 +42,6 @@ tree.SetBranchAddress( 'jetPhi',jetPhi)
 #
 elecDB = ElectronDataHandler()
 elecDB.SetBranchAddress(tree)
-#eleCalibEn = ROOT.std.vector('float')()
-#eleCalibPt = ROOT.std.vector('float')()
-#eleEta     = ROOT.std.vector('float')()
-#elePhi     = ROOT.std.vector('float')()
-#eleIDMVA   = ROOT.std.vector('float')()
-#tree.SetBranchAddress( 'eleCalibEn', eleCalibEn)
-#tree.SetBranchAddress( 'eleCalibPt', eleCalibPt)
-#tree.SetBranchAddress( 'eleEta',eleEta)
-#tree.SetBranchAddress( 'elePhi',elePhi)
-#tree.SetBranchAddress( 'eleIDMVA',eleIDMVA)
-
-
 
 
 #
@@ -77,7 +59,6 @@ iEvent = 0
 #
 hjetPt   = ROOT.TH1F("jetPt","jetPt",100,0,200)
 hnjet    = ROOT.TH1F("njet" ,"njet" ,10,-0.5,9.5)
-hnjetRaw = ROOT.TH1F("njetRaw" ,"njetRaw" ,10,-0.5,9.5)
 
 heleIDMVA  = ROOT.TH1F("eleIDMVA" ,"eleIDMVA" ,100,-1.2,1.2)
 hneleSel   = ROOT.TH1F("neleSel" ,"neleSel" ,5,-0.5,4.5)
@@ -112,11 +93,12 @@ for entry in xrange( 0,nEventThisFile): # let's only run over the first 100 even
     
     hneleSel.Fill(len(elecPassID))
 
+    #
+    #  Zee Selection 
+    #
     if len(elecPassID) < 2: continue
-
     mee_12 = (elecPassID[0].vec+elecPassID[1].vec).M()
     if abs(mee_12 - 91) > 10:  continue
-
     hmee.Fill(mee_12)
 
     if len(elecPassID) > 2:
@@ -129,27 +111,12 @@ for entry in xrange( 0,nEventThisFile): # let's only run over the first 100 even
     # 
     #  Print Jets
     # 
-    jetPassID = []
-    for iJet in range(jetPt.size()):
-        thisVector = ROOT.TLorentzVector()
-        thisVector.SetPtEtaPhiM(jetPt .at(iJet),
-                                jetEta.at(iJet),
-                                jetPhi.at(iJet),
-                                jetEn .at(iJet))
+    jetPassID = jetDB.getJets(ptCut=35,elecsOlap=elecPassID)
 
-        passOverlap = True
-        for elec in elecPassID:
-            if thisVector.DeltaR(elec.vec) < 0.4: passOverlap= False
-
-        if not passOverlap:
-            continue
-
-        jetPassID.append(thisVector)
-        #print "\tjet (pt,eta,phi)",thisVector.Pt(),thisVector.Eta(),thisVector.Phi()        
-        hjetPt.Fill(thisVector.Pt())
+    for jet in jetPassID:
+        hjetPt.Fill(jet.vec.Pt())
 
     hnjet.Fill(len(jetPassID))
-    hnjetRaw.Fill(jetPt.size())
     
         
     #
@@ -158,7 +125,6 @@ for entry in xrange( 0,nEventThisFile): # let's only run over the first 100 even
 
 hjetPt.Write()
 hnjet.Write()
-hnjetRaw.Write()
 heleIDMVA.Write()
 hneleSel.Write()
 hmee.Write()
