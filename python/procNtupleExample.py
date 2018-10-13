@@ -15,11 +15,19 @@ inFile = ROOT.TFile(o.infileName,"READ")
 
 inFile.ls()
 tree = inFile.Get("ggNtuplizer/EventTree")
+#tree = inFile.Get("EventTree")
 tree.Print("eleCali*")
 
+#
+# Input Data 
+#
+from eventData  import EventData
+#from jetInfo  import JetDataHandler
+from leptonInfo  import ElectronDataHandler
 
-runNumber = array('i', [0] )
-eventNumber = array('l', [0] )
+eventData = EventData()
+eventData.SetBranchAddress(tree)
+
 
 #
 #  Load Jet info
@@ -38,20 +46,21 @@ tree.SetBranchAddress( 'jetPhi',jetPhi)
 #
 #  Load Electron info
 #
-eleCalibEn = ROOT.std.vector('float')()
-eleCalibPt = ROOT.std.vector('float')()
-eleEta     = ROOT.std.vector('float')()
-elePhi     = ROOT.std.vector('float')()
-eleIDMVA   = ROOT.std.vector('float')()
-tree.SetBranchAddress( 'eleCalibEn', eleCalibEn)
-tree.SetBranchAddress( 'eleCalibPt', eleCalibPt)
-tree.SetBranchAddress( 'eleEta',eleEta)
-tree.SetBranchAddress( 'elePhi',elePhi)
-tree.SetBranchAddress( 'eleIDMVA',eleIDMVA)
+elecDB = ElectronDataHandler()
+elecDB.SetBranchAddress(tree)
+#eleCalibEn = ROOT.std.vector('float')()
+#eleCalibPt = ROOT.std.vector('float')()
+#eleEta     = ROOT.std.vector('float')()
+#elePhi     = ROOT.std.vector('float')()
+#eleIDMVA   = ROOT.std.vector('float')()
+#tree.SetBranchAddress( 'eleCalibEn', eleCalibEn)
+#tree.SetBranchAddress( 'eleCalibPt', eleCalibPt)
+#tree.SetBranchAddress( 'eleEta',eleEta)
+#tree.SetBranchAddress( 'elePhi',elePhi)
+#tree.SetBranchAddress( 'eleIDMVA',eleIDMVA)
 
 
-tree.SetBranchAddress( 'run', runNumber)
-tree.SetBranchAddress( 'event', eventNumber)
+
 
 #
 # Make output ntuple
@@ -85,6 +94,8 @@ for entry in xrange( 0,nEventThisFile): # let's only run over the first 100 even
     if o.nevents and (iEvent > int(o.nevents)):
         break
 
+    eventData.setEvent()
+
     #
     # Print event details
     #
@@ -94,35 +105,25 @@ for entry in xrange( 0,nEventThisFile): # let's only run over the first 100 even
     # 
     #  Print Elecs
     # 
-    elecPassID = []
-    for iElec in range(eleEta.size()):
-        if eleIDMVA.at(iElec) < -0.75: continue
-        if eleCalibPt.at(iElec) < 20:  continue
+    elecPassID = elecDB.getElec(ptCut=20, mvaCut = -0.75)
+    for elec in elecPassID:
+        heleIDMVA.Fill(elec.IDMVA)
 
-        thisVector = ROOT.TLorentzVector()
-        thisVector.SetPtEtaPhiE(eleCalibPt .at(iElec),
-                                eleEta     .at(iElec),
-                                elePhi     .at(iElec),
-                                eleCalibEn .at(iElec))
-        elecPassID.append(thisVector)
-        heleIDMVA.Fill(eleIDMVA.at(iElec))
-
-        
     
     hneleSel.Fill(len(elecPassID))
 
     if len(elecPassID) < 2: continue
 
-    mee_12 = (elecPassID[0]+elecPassID[1]).M()
+    mee_12 = (elecPassID[0].vec+elecPassID[1].vec).M()
     if abs(mee_12 - 91) > 10:  continue
 
     hmee.Fill(mee_12)
 
     if len(elecPassID) > 2:
-        print "RunNumber",runNumber[0],
-        print "EventNumber",eventNumber[0]
+        print "RunNumber",eventData.runNumber,
+        print "EventNumber",eventData.eventNumber
         for elec in elecPassID:
-            print "\telec (pt,eta,phi)",elec.Pt(),elec.Eta(),elec.Phi()
+            print "\telec (pt,eta,phi)",elec.vec.Pt(),elec.vec.Eta(),elec.vec.Phi()
          
 
     # 
@@ -138,7 +139,7 @@ for entry in xrange( 0,nEventThisFile): # let's only run over the first 100 even
 
         passOverlap = True
         for elec in elecPassID:
-            if thisVector.DeltaR(elec) < 0.4: passOverlap= False
+            if thisVector.DeltaR(elec.vec) < 0.4: passOverlap= False
 
         if not passOverlap:
             continue
